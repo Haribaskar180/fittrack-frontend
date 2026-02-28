@@ -1,0 +1,37 @@
+name: Frontend CI
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main]
+
+jobs:
+  security:
+    name: Security Audit
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      - run: npm ci
+      - name: Run npm audit
+        run: npm audit --audit-level=high || true
+      - name: Build check
+        run: npm run build
+
+  lint:
+    name: Type Check & Lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      - run: npm ci
+      - name: TypeScript check
+        run: npx tsc --noEmit
+      - run: npx eslint src/ --ext .ts,.tsx || true

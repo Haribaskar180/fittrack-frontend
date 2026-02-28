@@ -4,11 +4,18 @@ interface User {
   _id: string;
   email: string;
   role: 'admin' | 'coach' | 'athlete';
+  isActive: boolean;
+  createdAt: string;
   profile: {
     firstName?: string;
     lastName?: string;
     avatarUrl?: string;
-    preferredUnits?: string;
+    bio?: string;
+    dateOfBirth?: string;
+    height?: number;
+    weight?: number;
+    fitnessLevel?: string;
+    preferredUnits?: 'metric' | 'imperial';
   };
 }
 
