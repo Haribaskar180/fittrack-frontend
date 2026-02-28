@@ -9,6 +9,8 @@ import NutritionPage from './pages/NutritionPage';
 import GoalsPage from './pages/GoalsPage';
 import ProgressPage from './pages/ProgressPage';
 import ExercisesPage from './pages/ExercisesPage';
+import AnalyticsPage from './pages/AnalyticsPage';
+import ProfilePage from './pages/ProfilePage';
 import UsersPage from './pages/UsersPage';
 import AppLayout from './components/layout/AppLayout';
 import ProtectedRoute from './components/layout/ProtectedRoute';
@@ -35,7 +37,13 @@ function App() {
         <Route path="goals" element={<GoalsPage />} />
         <Route path="progress" element={<ProgressPage />} />
         <Route path="exercises" element={<ExercisesPage />} />
-        <Route path="users" element={<UsersPage />} />
+        <Route path="analytics" element={<AnalyticsPage />} />
+        <Route path="profile" element={<ProfilePage />} />
+        <Route path="users" element={
+          <ProtectedRoute roles={['admin']}>
+            <UsersPage />
+          </ProtectedRoute>
+        } />
       </Route>
       <Route path="*" element={<Navigate to="/dashboard" replace />} />
     </Routes>

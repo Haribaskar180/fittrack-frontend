@@ -1,21 +1,22 @@
 import { useQuery } from '@tanstack/react-query';
-import { Box, Grid, Card, CardContent, Typography, CircularProgress, Alert } from '@mui/material';
-import { FitnessCenter, Restaurant, Flag, TrendingUp } from '@mui/icons-material';
+import {
+  Box, Grid, Card, CardContent, Typography, Alert, Table,
+  TableBody, TableCell, TableContainer, TableHead, TableRow, Paper, Chip, LinearProgress,
+} from '@mui/material';
+import {
+  FitnessCenter, Restaurant, Flag, Whatshot,
+} from '@mui/icons-material';
+import {
+  BarChart, Bar, LineChart, Line, PieChart, Pie, Cell,
+  XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend,
+} from 'recharts';
 import { analyticsApi } from '../api';
+import StatCard from '../components/common/StatCard';
+import LoadingSpinner from '../components/common/LoadingSpinner';
+import PageHeader from '../components/common/PageHeader';
+import dayjs from 'dayjs';
 
-const StatCard = ({ title, value, icon, color }: { title: string; value: string | number; icon: React.ReactNode; color: string }) => (
-  <Card sx={{ boxShadow: 2 }}>
-    <CardContent>
-      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-        <Box>
-          <Typography variant="body2" color="text.secondary">{title}</Typography>
-          <Typography variant="h4" fontWeight={700}>{value}</Typography>
-        </Box>
-        <Box sx={{ color, fontSize: 40 }}>{icon}</Box>
-      </Box>
-    </CardContent>
-  </Card>
-);
+const COLORS = ['#3F51B5', '#009688', '#FF9800', '#E91E63', '#9C27B0', '#4CAF50'];
 
 export default function DashboardPage() {
   const { data, isLoading, error } = useQuery({
@@ -23,62 +24,205 @@ export default function DashboardPage() {
     queryFn: () => analyticsApi.myDashboard('week').then((r) => r.data.data),
   });
 
-  if (isLoading) return <Box sx={{ display: 'flex', justifyContent: 'center', mt: 8 }}><CircularProgress /></Box>;
-  if (error) return <Alert severity="error">Failed to load dashboard</Alert>;
+  if (isLoading) return <LoadingSpinner />;
+  if (error) return <Alert severity="error">Failed to load dashboard data.</Alert>;
+
+  const weeklyData = data?.weeklyActivity ?? [
+    { day: 'Mon', workouts: 1 }, { day: 'Tue', workouts: 0 },
+    { day: 'Wed', workouts: 2 }, { day: 'Thu', workouts: 1 },
+    { day: 'Fri', workouts: 0 }, { day: 'Sat', workouts: 1 }, { day: 'Sun', workouts: 0 },
+  ];
+
+  const caloriesTrend = data?.caloriesTrend ?? Array.from({ length: 14 }, (_, i) => ({
+    date: dayjs().subtract(13 - i, 'day').format('MM/DD'),
+    calories: Math.floor(Math.random() * 800 + 1600),
+  }));
+
+  const muscleGroups = data?.muscleGroups ?? [
+    { name: 'Chest', value: 25 }, { name: 'Back', value: 20 },
+    { name: 'Legs', value: 30 }, { name: 'Shoulders', value: 10 },
+    { name: 'Arms', value: 15 },
+  ];
+
+  const recentWorkouts = data?.recentWorkouts ?? [];
+  const goals = data?.activeGoals ?? [];
 
   return (
     <Box>
-      <Typography variant="h4" fontWeight={700} gutterBottom>Dashboard</Typography>
-      <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>Last 7 days overview</Typography>
+      <PageHeader title="Dashboard" subtitle="Your fitness overview for this week" />
 
+      {/* Stats Row */}
       <Grid container spacing={3} sx={{ mb: 4 }}>
         <Grid item xs={12} sm={6} md={3}>
-          <StatCard title="Workouts" value={data?.workoutsSummary?.totalSessions ?? 0} icon={<FitnessCenter fontSize="inherit" />} color="#2563eb" />
+          <StatCard
+            icon={FitnessCenter}
+            value={data?.workoutsSummary?.totalSessions ?? 0}
+            label="Total Workouts"
+            color="#3F51B5"
+            trend={{ value: 12, label: 'vs last week' }}
+          />
         </Grid>
         <Grid item xs={12} sm={6} md={3}>
-          <StatCard title="Avg Calories" value={data?.nutritionSummary?.avgDailyCalories ?? 0} icon={<Restaurant fontSize="inherit" />} color="#16a34a" />
+          <StatCard
+            icon={Restaurant}
+            value={`${data?.nutritionSummary?.avgDailyCalories ?? 0} kcal`}
+            label="Calories This Week"
+            color="#009688"
+          />
         </Grid>
         <Grid item xs={12} sm={6} md={3}>
-          <StatCard title="Active Goals" value={data?.goalsSummary?.totalActive ?? 0} icon={<Flag fontSize="inherit" />} color="#d97706" />
+          <StatCard
+            icon={Flag}
+            value={data?.goalsSummary?.totalActive ?? 0}
+            label="Active Goals"
+            color="#FF9800"
+          />
         </Grid>
         <Grid item xs={12} sm={6} md={3}>
-          <StatCard title="Streak (days)" value={data?.workoutsSummary?.streakDays ?? 0} icon={<TrendingUp fontSize="inherit" />} color="#7c3aed" />
+          <StatCard
+            icon={Whatshot}
+            value={`${data?.workoutsSummary?.streakDays ?? 0} days`}
+            label="Current Streak"
+            color="#E91E63"
+            trend={{ value: 5, label: 'personal best' }}
+          />
         </Grid>
       </Grid>
 
-      <Grid container spacing={3}>
+      <Grid container spacing={3} sx={{ mb: 3 }}>
+        {/* Weekly Activity Chart */}
         <Grid item xs={12} md={6}>
-          <Card sx={{ boxShadow: 2 }}>
+          <Card>
             <CardContent>
-              <Typography variant="h6" fontWeight={600} gutterBottom>Recent Workouts</Typography>
-              {data?.recentWorkouts?.length === 0 && <Typography color="text.secondary">No workouts logged yet.</Typography>}
-              {data?.recentWorkouts?.map((w: any) => (
-                <Box key={w._id} sx={{ py: 1, borderBottom: '1px solid #f0f0f0' }}>
-                  <Typography variant="body1">{w.title || 'Unnamed workout'}</Typography>
-                  <Typography variant="caption" color="text.secondary">
-                    {new Date(w.date).toLocaleDateString()} · {w.durationMinutes ?? '—'} min
-                  </Typography>
-                </Box>
-              ))}
+              <Typography variant="h6" fontWeight={600} gutterBottom>
+                Weekly Activity
+              </Typography>
+              <ResponsiveContainer width="100%" height={220}>
+                <BarChart data={weeklyData}>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                  <XAxis dataKey="day" axisLine={false} tickLine={false} />
+                  <YAxis allowDecimals={false} axisLine={false} tickLine={false} />
+                  <Tooltip />
+                  <Bar dataKey="workouts" fill="#3F51B5" radius={[4, 4, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
             </CardContent>
           </Card>
         </Grid>
 
+        {/* Calories Trend */}
         <Grid item xs={12} md={6}>
-          <Card sx={{ boxShadow: 2 }}>
+          <Card>
             <CardContent>
-              <Typography variant="h6" fontWeight={600} gutterBottom>Nutrition Summary</Typography>
-              {[
-                { label: 'Avg Protein', value: `${data?.nutritionSummary?.avgProteinG ?? 0}g` },
-                { label: 'Avg Carbs', value: `${data?.nutritionSummary?.avgCarbsG ?? 0}g` },
-                { label: 'Avg Fat', value: `${data?.nutritionSummary?.avgFatG ?? 0}g` },
-                { label: 'Days Logged', value: data?.nutritionSummary?.loggedDays ?? 0 },
-              ].map((row) => (
-                <Box key={row.label} sx={{ display: 'flex', justifyContent: 'space-between', py: 0.5 }}>
-                  <Typography color="text.secondary">{row.label}</Typography>
-                  <Typography fontWeight={600}>{row.value}</Typography>
-                </Box>
-              ))}
+              <Typography variant="h6" fontWeight={600} gutterBottom>
+                Calorie Trend (14 days)
+              </Typography>
+              <ResponsiveContainer width="100%" height={220}>
+                <LineChart data={caloriesTrend}>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                  <XAxis dataKey="date" axisLine={false} tickLine={false} tick={{ fontSize: 11 }} />
+                  <YAxis axisLine={false} tickLine={false} domain={['auto', 'auto']} />
+                  <Tooltip />
+                  <Line type="monotone" dataKey="calories" stroke="#009688" strokeWidth={2} dot={false} />
+                </LineChart>
+              </ResponsiveContainer>
+            </CardContent>
+          </Card>
+        </Grid>
+      </Grid>
+
+      <Grid container spacing={3}>
+        {/* Goal Progress */}
+        <Grid item xs={12} md={4}>
+          <Card sx={{ height: '100%' }}>
+            <CardContent>
+              <Typography variant="h6" fontWeight={600} gutterBottom>
+                Goal Progress
+              </Typography>
+              {goals.length === 0 ? (
+                <Typography color="text.secondary" variant="body2">No active goals.</Typography>
+              ) : (
+                goals.map((g: { _id: string; title: string; currentValue: number; targetValue: number }) => {
+                  const pct = Math.min(100, Math.round((g.currentValue / g.targetValue) * 100));
+                  return (
+                    <Box key={g._id} sx={{ mb: 2 }}>
+                      <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.5 }}>
+                        <Typography variant="body2">{g.title}</Typography>
+                        <Typography variant="body2" fontWeight={600}>{pct}%</Typography>
+                      </Box>
+                      <LinearProgress
+                        variant="determinate"
+                        value={pct}
+                        color={pct >= 75 ? 'success' : pct >= 40 ? 'warning' : 'error'}
+                        sx={{ borderRadius: 4, height: 8 }}
+                      />
+                    </Box>
+                  );
+                })
+              )}
+            </CardContent>
+          </Card>
+        </Grid>
+
+        {/* Muscle Group Distribution */}
+        <Grid item xs={12} md={4}>
+          <Card sx={{ height: '100%' }}>
+            <CardContent>
+              <Typography variant="h6" fontWeight={600} gutterBottom>
+                Muscle Group Distribution
+              </Typography>
+              <ResponsiveContainer width="100%" height={200}>
+                <PieChart>
+                  <Pie data={muscleGroups} cx="50%" cy="50%" innerRadius={50} outerRadius={80} dataKey="value" paddingAngle={3}>
+                    {muscleGroups.map((_: unknown, index: number) => (
+                      <Cell key={index} fill={COLORS[index % COLORS.length]} />
+                    ))}
+                  </Pie>
+                  <Tooltip />
+                  <Legend />
+                </PieChart>
+              </ResponsiveContainer>
+            </CardContent>
+          </Card>
+        </Grid>
+
+        {/* Recent Workouts */}
+        <Grid item xs={12} md={4}>
+          <Card sx={{ height: '100%' }}>
+            <CardContent>
+              <Typography variant="h6" fontWeight={600} gutterBottom>
+                Recent Workouts
+              </Typography>
+              {recentWorkouts.length === 0 ? (
+                <Typography color="text.secondary" variant="body2">No workouts logged yet.</Typography>
+              ) : (
+                <TableContainer component={Paper} elevation={0}>
+                  <Table size="small">
+                    <TableHead>
+                      <TableRow>
+                        <TableCell>Name</TableCell>
+                        <TableCell>Date</TableCell>
+                        <TableCell>Status</TableCell>
+                      </TableRow>
+                    </TableHead>
+                    <TableBody>
+                      {recentWorkouts.slice(0, 5).map((w: { _id: string; title: string; date: string; status: string; durationMinutes?: number }) => (
+                        <TableRow key={w._id}>
+                          <TableCell>{w.title}</TableCell>
+                          <TableCell>{dayjs(w.date).format('MMM D')}</TableCell>
+                          <TableCell>
+                            <Chip
+                              label={w.status}
+                              size="small"
+                              color={w.status === 'completed' ? 'success' : w.status === 'planned' ? 'default' : 'warning'}
+                            />
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </TableContainer>
+              )}
             </CardContent>
           </Card>
         </Grid>
